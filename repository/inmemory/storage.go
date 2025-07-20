@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"project/internal/domain/errors"
 	"project/internal/domain/models"
 
@@ -64,15 +65,34 @@ func (s *Storage) DeleteUser(id string) error {
 	return nil
 }
 
-func (s *Storage) GetTasks() ([]models.Task, error) {
-	var tasks []models.Task
-	for _, t := range s.tasks {
-		tasks = append(tasks, t)
-	}
-	return tasks, nil
+func (s *Storage) CreateTask(ctx context.Context, task *models.Task) error {
+	return s.CreateTaskNoCtx(task)
 }
 
-func (s *Storage) GetTaskByID(id string) (*models.Task, error) {
+func (s *Storage) GetTaskByID(ctx context.Context, id string) (*models.Task, error) {
+	return s.GetTaskByIDNoCtx(id)
+}
+
+func (s *Storage) GetTasks(ctx context.Context, userID string) ([]models.Task, error) {
+	return s.GetTasksByUserIDNoCtx(userID)
+}
+
+func (s *Storage) UpdateTask(ctx context.Context, id string, task *models.Task) error {
+	return s.UpdateTaskNoCtx(id, task)
+}
+
+func (s *Storage) DeleteTask(ctx context.Context, id string) error {
+	return s.DeleteTaskNoCtx(id)
+}
+
+func (s *Storage) CreateTaskNoCtx(task *models.Task) error {
+	id := uuid.New().String()
+	task.ID = id
+	s.tasks[id] = *task
+	return nil
+}
+
+func (s *Storage) GetTaskByIDNoCtx(id string) (*models.Task, error) {
 	task, exists := s.tasks[id]
 	if !exists {
 		return nil, errors.ErrNotFound
@@ -80,14 +100,17 @@ func (s *Storage) GetTaskByID(id string) (*models.Task, error) {
 	return &task, nil
 }
 
-func (s *Storage) CreateTask(task *models.Task) error {
-	id := uuid.New().String()
-	task.ID = id
-	s.tasks[id] = *task
-	return nil
+func (s *Storage) GetTasksByUserIDNoCtx(userID string) ([]models.Task, error) {
+	var tasks []models.Task
+	for _, t := range s.tasks {
+		if t.UserID == userID {
+			tasks = append(tasks, t)
+		}
+	}
+	return tasks, nil
 }
 
-func (s *Storage) UpdateTask(id string, task *models.Task) error {
+func (s *Storage) UpdateTaskNoCtx(id string, task *models.Task) error {
 	if _, exists := s.tasks[id]; !exists {
 		return errors.ErrNotFound
 	}
@@ -96,7 +119,7 @@ func (s *Storage) UpdateTask(id string, task *models.Task) error {
 	return nil
 }
 
-func (s *Storage) DeleteTask(id string) error {
+func (s *Storage) DeleteTaskNoCtx(id string) error {
 	if _, exists := s.tasks[id]; !exists {
 		return errors.ErrNotFound
 	}

@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: tasks
+      POSTGRES_USER: shouldbeinVaultuser
+      POSTGRES_PASSWORD: shouldbeinVaultpassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "shouldbeinVaultuser", "-d", "tasks"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  taskapp:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DB_USER=shouldbeinVaultuser
+      - DB_PASSWORD=shouldbeinVaultpassword
+      - DB_NAME=tasks
+      - DB_HOST=db
+      - DB_PORT=5432
+      - MIGRATEPATH=migrations
+    ports:
+      - "8080:8080"
+    command: ["./taskapp"]
+
+volumes:
+  pgdata: 

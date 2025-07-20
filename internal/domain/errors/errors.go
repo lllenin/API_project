@@ -4,7 +4,6 @@ import "errors"
 
 var (
 	ErrUserNotFound       = errors.New("пользователь не найден")
-	ErrBookNotFound       = errors.New("книга не найдена")
 	ErrInvalidCredentials = errors.New("неверные учетные данные")
 	ErrUserAlreadyExists  = errors.New("пользователь уже существует")
 	ErrInvalidInput       = errors.New("некорректные входные данные")
@@ -24,4 +23,18 @@ var (
 	ErrInvalidStatus      = errors.New("недопустимый статус задачи")
 	ErrInvalidTitle       = errors.New("некорректный заголовок задачи")
 	ErrInvalidDescription = errors.New("некорректное описание задачи")
+
+	ErrInvalidRequest = errors.New("некорректные данные запроса")
+	ErrUserExists     = errors.New("пользователь уже существует")
+	ErrTaskStatus     = errors.New("недопустимый статус задачи")
+
+	ErrInvalidRequestData     = errors.New("некорректные данные запроса")
+	ErrInvalidUserCredentials = errors.New("неверные учетные данные")
+	ErrUnauthorizedAction     = errors.New("нет прав на выполнение действия")
+	ErrUserUpdateForbidden    = errors.New("нет прав на изменение этого пользователя")
+	ErrUserDeleteForbidden    = errors.New("нет прав на удаление этого пользователя")
+	ErrTaskNotFound           = errors.New("задача не найдена")
+	ErrTasksNotFound          = errors.New("задачи не найдены")
+	ErrTokenGeneration        = errors.New("ошибка генерации токена")
+	ErrNotAuthorized          = errors.New("пользователь не авторизован")
 )
