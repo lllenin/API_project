@@ -37,4 +37,7 @@ var (
 	ErrTasksNotFound          = errors.New("задачи не найдены")
 	ErrTokenGeneration        = errors.New("ошибка генерации токена")
 	ErrNotAuthorized          = errors.New("пользователь не авторизован")
+
+	ErrInvalidGzipRequest    = errors.New("некорректный gzip-запрос")
+	ErrGzipCompressionFailed = errors.New("ошибка gzip-сжатия")
 )
