@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"project/internal/domain/errors"
 	"project/internal/domain/models"
@@ -106,6 +105,13 @@ func (api *TaskAPI) Start() error {
 	return api.httpSrv.ListenAndServe()
 }
 
+func (api *TaskAPI) Shutdown(ctx context.Context) error {
+	if api.httpSrv == nil {
+		return nil
+	}
+	return api.httpSrv.Shutdown(ctx)
+}
+
 func (api *TaskAPI) configRoutes() {
 	router := gin.Default()
 
@@ -125,10 +131,10 @@ func (api *TaskAPI) configRoutes() {
 	tasks := router.Group("/tasks")
 	{
 		tasks.GET("", api.getTasks)
-		tasks.GET(":taskID", api.getTaskByID)
+		tasks.GET("/:taskID", api.getTaskByID)
 		tasks.POST("", api.createTask)
-		tasks.PUT(":taskID", api.updateTask)
-		tasks.DELETE(":taskID", api.deleteTask)
+		tasks.PUT("/:taskID", api.updateTask)
+		tasks.DELETE("/:taskID", api.deleteTask)
 	}
 
 	api.httpSrv.Handler = router
@@ -143,7 +149,7 @@ func (api *TaskAPI) login(ctx *gin.Context) {
 
 	valid := validator.New()
 	if err := valid.Struct(req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": errors.ErrValidationFailed.Error(), "details": err.Error()})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": errors.ErrValidationFailed.Error()})
 		return
 	}
 
@@ -225,9 +231,7 @@ func (api *TaskAPI) register(ctx *gin.Context) {
 		Role:     role,
 	}
 
-	log.Println(user.ID)
-	err = api.repo.CreateUser(&user)
-	if err != nil {
+	if err := api.repo.CreateUser(&user); err != nil {
 		ctx.JSON(http.StatusConflict, gin.H{"error": errors.ErrUserAlreadyExists.Error()})
 		return
 	}
@@ -348,6 +352,11 @@ func (api *TaskAPI) getTasks(ctx *gin.Context) {
 }
 
 func (api *TaskAPI) getTaskByID(ctx *gin.Context) {
+	userID, err := getUserIDFromJWT(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": errors.ErrNotAuthorized.Error()})
+		return
+	}
 	id := ctx.Param("taskID")
 	task, err := api.taskRepo.GetTaskByID(ctx.Request.Context(), id)
 	if err != nil {
@@ -356,6 +365,10 @@ func (api *TaskAPI) getTaskByID(ctx *gin.Context) {
 		} else {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": errors.ErrInternalServer.Error()})
 		}
+		return
+	}
+	if task.UserID != userID {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": errors.ErrForbidden.Error()})
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{"task": task})
@@ -407,6 +420,11 @@ func (api *TaskAPI) createTask(ctx *gin.Context) {
 }
 
 func (api *TaskAPI) updateTask(ctx *gin.Context) {
+	userID, err := getUserIDFromJWT(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": errors.ErrNotAuthorized.Error()})
+		return
+	}
 	id := ctx.Param("taskID")
 	var req models.UpdateTaskRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -425,6 +443,10 @@ func (api *TaskAPI) updateTask(ctx *gin.Context) {
 		} else {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": errors.ErrInternalServer.Error()})
 		}
+		return
+	}
+	if task.UserID != userID {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": errors.ErrForbidden.Error()})
 		return
 	}
 	if req.Status != "" && !allowedTaskStatuses[req.Status] {
@@ -448,7 +470,25 @@ func (api *TaskAPI) updateTask(ctx *gin.Context) {
 }
 
 func (api *TaskAPI) deleteTask(ctx *gin.Context) {
+	userID, err := getUserIDFromJWT(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": errors.ErrNotAuthorized.Error()})
+		return
+	}
 	id := ctx.Param("taskID")
+	task, err := api.taskRepo.GetTaskByID(ctx.Request.Context(), id)
+	if err != nil {
+		if err == errors.ErrNotFound {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": errors.ErrTaskNotFound.Error()})
+		} else {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": errors.ErrInternalServer.Error()})
+		}
+		return
+	}
+	if task.UserID != userID {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": errors.ErrForbidden.Error()})
+		return
+	}
 	if err := api.taskRepo.DeleteTask(ctx.Request.Context(), id); err != nil {
 		if err == errors.ErrNotFound {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": errors.ErrTaskNotFound.Error()})
@@ -456,6 +496,10 @@ func (api *TaskAPI) deleteTask(ctx *gin.Context) {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": errors.ErrInternalServer.Error()})
 		}
 		return
+	}
+	type hardDeleteEnqueuer interface{ EnqueueHardDelete(string) }
+	if enq, ok := any(api.taskRepo).(hardDeleteEnqueuer); ok {
+		enq.EnqueueHardDelete(id)
 	}
 	ctx.JSON(http.StatusOK, gin.H{"message": "задача успешно удалена"})
 }

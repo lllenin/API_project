@@ -28,11 +28,12 @@ type UpdateUserRequest struct {
 }
 
 type Task struct {
-	ID          string `json:"id" validate:"omitempty,uuid"`
-	Title       string `json:"title" validate:"required,min=1,max=100"`
-	Description string `json:"description" validate:"omitempty,max=500"`
-	Status      string `json:"status" validate:"required,oneof=new in_progress done"`
-	UserID      string `json:"user_id" validate:"required,uuid"`
+    ID          string `json:"id" validate:"omitempty,uuid"`
+    Title       string `json:"title" validate:"required,min=1,max=100"`
+    Description string `json:"description" validate:"omitempty,max=500"`
+    Status      string `json:"status" validate:"required,oneof=new in_progress done"`
+    UserID      string `json:"user_id" validate:"required,uuid"`
+    Deleted     bool   `json:"deleted"`
 }
 
 type CreateTaskRequest struct {
