@@ -11,5 +11,6 @@ CREATE TABLE IF NOT EXISTS tasks (
     title VARCHAR(100) NOT NULL,
     description VARCHAR(500),
     status VARCHAR(20) NOT NULL,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    deleted BOOLEAN NOT NULL DEFAULT false
 ); 
