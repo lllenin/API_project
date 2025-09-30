@@ -816,3 +816,131 @@ func TestServerGracefulShutdown(t *testing.T) {
 	assert.NotNil(t, api)
 	assert.NotNil(t, api.httpSrv)
 }
+
+func BenchmarkLogin(b *testing.B) {
+	gin.SetMode(gin.TestMode)
+	mockRepo := &MockRepository{}
+	mockTaskRepo := &MockTaskRepository{}
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
+	user := &models.User{
+		ID:       "user123",
+		Username: "testuser",
+		Email:    "test@example.com",
+		Password: string(hashedPassword),
+		Role:     "user",
+	}
+	mockRepo.On("GetUserByUsername", "testuser").Return(user, nil)
+
+	api := NewTaskAPI(mockRepo, mockTaskRepo)
+
+	loginRequest := models.LoginRequest{
+		Username: "testuser",
+		Password: "password123",
+	}
+	jsonData, _ := json.Marshal(loginRequest)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		req, _ := http.NewRequest("POST", "/users/login", bytes.NewBuffer(jsonData))
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		api.httpSrv.Handler.ServeHTTP(w, req)
+	}
+}
+
+func BenchmarkRegister(b *testing.B) {
+	gin.SetMode(gin.TestMode)
+	mockRepo := &MockRepository{}
+	mockTaskRepo := &MockTaskRepository{}
+
+	mockRepo.On("GetUserByUsername", "testuser").Return(nil, errors.ErrUserNotFound)
+	mockRepo.On("CreateUser", mock.AnythingOfType("*models.User")).Return(nil)
+
+	api := NewTaskAPI(mockRepo, mockTaskRepo)
+
+	registerRequest := models.RegisterRequest{
+		Username: "testuser",
+		Email:    "test@example.com",
+		Password: "password123",
+		Role:     "user",
+	}
+	jsonData, _ := json.Marshal(registerRequest)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		req, _ := http.NewRequest("POST", "/users/register", bytes.NewBuffer(jsonData))
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		api.httpSrv.Handler.ServeHTTP(w, req)
+	}
+}
+
+func BenchmarkCreateTask(b *testing.B) {
+	gin.SetMode(gin.TestMode)
+	mockRepo := &MockRepository{}
+	mockTaskRepo := &MockTaskRepository{}
+
+	mockTaskRepo.On("CreateTask", mock.Anything, mock.AnythingOfType("*models.Task")).Return(nil)
+
+	api := NewTaskAPI(mockRepo, mockTaskRepo)
+
+	createTaskRequest := models.CreateTaskRequest{
+		Title:       "Test Task",
+		Description: "Test Description",
+	}
+	jsonData, _ := json.Marshal(createTaskRequest)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		req, _ := http.NewRequest("POST", "/tasks", bytes.NewBuffer(jsonData))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(&http.Cookie{
+			Name:  "jwt_token",
+			Value: generateTestToken("user123"),
+		})
+
+		w := httptest.NewRecorder()
+		api.httpSrv.Handler.ServeHTTP(w, req)
+	}
+}
+
+func BenchmarkGetTasks(b *testing.B) {
+	gin.SetMode(gin.TestMode)
+	mockRepo := &MockRepository{}
+	mockTaskRepo := &MockTaskRepository{}
+
+	tasks := []models.Task{
+		{
+			ID:          "task1",
+			Title:       "Task 1",
+			Description: "Description 1",
+			Status:      "new",
+			UserID:      "user123",
+		},
+		{
+			ID:          "task2",
+			Title:       "Task 2",
+			Description: "Description 2",
+			Status:      "in_progress",
+			UserID:      "user123",
+		},
+	}
+	mockTaskRepo.On("GetTasks", mock.Anything, "user123").Return(tasks, nil)
+
+	api := NewTaskAPI(mockRepo, mockTaskRepo)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		req, _ := http.NewRequest("GET", "/tasks", nil)
+		req.AddCookie(&http.Cookie{
+			Name:  "jwt_token",
+			Value: generateTestToken("user123"),
+		})
+
+		w := httptest.NewRecorder()
+		api.httpSrv.Handler.ServeHTTP(w, req)
+	}
+}
