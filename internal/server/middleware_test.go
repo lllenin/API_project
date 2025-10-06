@@ -75,7 +75,7 @@ func TestGzipRequestDecompress(t *testing.T) {
 			if tt.contentEncoding == "gzip" {
 				var buf bytes.Buffer
 				gz := gzip.NewWriter(&buf)
-				gz.Write([]byte(tt.content))
+				_, _ = gz.Write([]byte(tt.content))
 				gz.Close()
 				body = &buf
 			} else {

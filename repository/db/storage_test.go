@@ -51,7 +51,11 @@ func TestMain(m *testing.M) {
 		log.Printf("Cannot connect to test database: %v", err)
 		os.Exit(1)
 	}
-	defer conn.Close(context.Background())
+	defer func() {
+		if err := conn.Close(context.Background()); err != nil {
+			log.Printf("Error closing connection: %v", err)
+		}
+	}()
 
 	err = Migration(testDBConnStr, "../../migrations")
 	if err != nil {
