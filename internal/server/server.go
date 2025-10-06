@@ -79,7 +79,8 @@ func NewTaskAPI(repo Repository, taskRepo TaskRepository) *TaskAPI {
 	cfg := ReadConfig()
 
 	httpSrv := http.Server{
-		Addr: cfg.Addr + ":" + strconv.Itoa(cfg.Port),
+		Addr:              cfg.Addr + ":" + strconv.Itoa(cfg.Port),
+		ReadHeaderTimeout: 30 * time.Second,
 	}
 
 	api := TaskAPI{

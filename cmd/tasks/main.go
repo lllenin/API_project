@@ -91,7 +91,9 @@ func main() {
 
 	select {
 	case sig := <-sigChan:
-		HandleShutdown(api, sig)
+		if err := HandleShutdown(api, sig); err != nil {
+			log.Printf("[ERROR] Ошибка при shutdown: %v", err)
+		}
 
 	case err := <-serverErr:
 		log.Printf("[ERROR] Ошибка сервера: %v", err)
