@@ -64,7 +64,7 @@ func TestMain(m *testing.M) {
 	err = Migration(testDBConnStr, "../../migrations")
 	if err != nil {
 		log.Printf("Failed to run migrations: %v", err)
-		os.Exit(1)
+		os.Exit(1) //nolint:gocritic
 	}
 
 	code := m.Run()
