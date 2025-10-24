@@ -22,7 +22,11 @@ func setupTestDB(t *testing.T) *Storage {
 		t.Skipf("Skipping test: cannot connect to test database: %v", err)
 		return nil
 	}
-	defer conn.Close(context.Background())
+	defer func() {
+		if err := conn.Close(context.Background()); err != nil {
+			log.Printf("Error closing connection: %v", err)
+		}
+	}()
 
 	storage, err := NewStorage(testDBConnStr)
 	require.NoError(t, err)
@@ -51,12 +55,16 @@ func TestMain(m *testing.M) {
 		log.Printf("Cannot connect to test database: %v", err)
 		os.Exit(1)
 	}
-	defer conn.Close(context.Background())
+	defer func() {
+		if err := conn.Close(context.Background()); err != nil {
+			log.Printf("Error closing connection: %v", err)
+		}
+	}()
 
 	err = Migration(testDBConnStr, "../../migrations")
 	if err != nil {
 		log.Printf("Failed to run migrations: %v", err)
-		os.Exit(1)
+		os.Exit(1) //nolint:gocritic
 	}
 
 	code := m.Run()
@@ -101,7 +109,7 @@ func TestNewStorage(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, storage)
 				if storage != nil {
-					storage.conn.Close(context.Background())
+					_ = storage.conn.Close(context.Background())
 				}
 			}
 		})
@@ -113,7 +121,11 @@ func TestStorageCreateTask(t *testing.T) {
 	if storage == nil {
 		return
 	}
-	defer storage.conn.Close(context.Background())
+	defer func() {
+		if err := storage.conn.Close(context.Background()); err != nil {
+			t.Logf("Error closing connection: %v", err)
+		}
+	}()
 	defer cleanupTestData(t, storage)
 
 	user := &models.User{
@@ -144,7 +156,11 @@ func TestStorageGetTaskByID(t *testing.T) {
 	if storage == nil {
 		return
 	}
-	defer storage.conn.Close(context.Background())
+	defer func() {
+		if err := storage.conn.Close(context.Background()); err != nil {
+			t.Logf("Error closing connection: %v", err)
+		}
+	}()
 	defer cleanupTestData(t, storage)
 
 	user := &models.User{
@@ -182,7 +198,11 @@ func TestStorageGetTasks(t *testing.T) {
 	if storage == nil {
 		return
 	}
-	defer storage.conn.Close(context.Background())
+	defer func() {
+		if err := storage.conn.Close(context.Background()); err != nil {
+			t.Logf("Error closing connection: %v", err)
+		}
+	}()
 	defer cleanupTestData(t, storage)
 
 	user := &models.User{
@@ -223,7 +243,11 @@ func TestStorageUpdateTask(t *testing.T) {
 	if storage == nil {
 		return
 	}
-	defer storage.conn.Close(context.Background())
+	defer func() {
+		if err := storage.conn.Close(context.Background()); err != nil {
+			t.Logf("Error closing connection: %v", err)
+		}
+	}()
 	defer cleanupTestData(t, storage)
 
 	user := &models.User{
@@ -259,7 +283,11 @@ func TestStorageDeleteTask(t *testing.T) {
 	if storage == nil {
 		return
 	}
-	defer storage.conn.Close(context.Background())
+	defer func() {
+		if err := storage.conn.Close(context.Background()); err != nil {
+			t.Logf("Error closing connection: %v", err)
+		}
+	}()
 	defer cleanupTestData(t, storage)
 
 	user := &models.User{
@@ -290,7 +318,11 @@ func TestStorageCreateUser(t *testing.T) {
 	if storage == nil {
 		return
 	}
-	defer storage.conn.Close(context.Background())
+	defer func() {
+		if err := storage.conn.Close(context.Background()); err != nil {
+			t.Logf("Error closing connection: %v", err)
+		}
+	}()
 	defer cleanupTestData(t, storage)
 
 	user := &models.User{
@@ -310,7 +342,11 @@ func TestStorageGetUserByID(t *testing.T) {
 	if storage == nil {
 		return
 	}
-	defer storage.conn.Close(context.Background())
+	defer func() {
+		if err := storage.conn.Close(context.Background()); err != nil {
+			t.Logf("Error closing connection: %v", err)
+		}
+	}()
 	defer cleanupTestData(t, storage)
 
 	user := &models.User{
@@ -339,7 +375,11 @@ func TestStorageGetUserByUsername(t *testing.T) {
 	if storage == nil {
 		return
 	}
-	defer storage.conn.Close(context.Background())
+	defer func() {
+		if err := storage.conn.Close(context.Background()); err != nil {
+			t.Logf("Error closing connection: %v", err)
+		}
+	}()
 	defer cleanupTestData(t, storage)
 
 	user := &models.User{
@@ -368,7 +408,11 @@ func TestStorageUpdateUser(t *testing.T) {
 	if storage == nil {
 		return
 	}
-	defer storage.conn.Close(context.Background())
+	defer func() {
+		if err := storage.conn.Close(context.Background()); err != nil {
+			t.Logf("Error closing connection: %v", err)
+		}
+	}()
 	defer cleanupTestData(t, storage)
 
 	user := &models.User{
@@ -396,7 +440,11 @@ func TestStorageDeleteUser(t *testing.T) {
 	if storage == nil {
 		return
 	}
-	defer storage.conn.Close(context.Background())
+	defer func() {
+		if err := storage.conn.Close(context.Background()); err != nil {
+			t.Logf("Error closing connection: %v", err)
+		}
+	}()
 	defer cleanupTestData(t, storage)
 
 	user := &models.User{
@@ -418,7 +466,11 @@ func TestStorageEnqueueHardDelete(t *testing.T) {
 	if storage == nil {
 		return
 	}
-	defer storage.conn.Close(context.Background())
+	defer func() {
+		if err := storage.conn.Close(context.Background()); err != nil {
+			t.Logf("Error closing connection: %v", err)
+		}
+	}()
 	defer cleanupTestData(t, storage)
 
 	assert.NotPanics(t, func() {
@@ -431,7 +483,11 @@ func TestStorageTryEnqueueOrFlush(t *testing.T) {
 	if storage == nil {
 		return
 	}
-	defer storage.conn.Close(context.Background())
+	defer func() {
+		if err := storage.conn.Close(context.Background()); err != nil {
+			t.Logf("Error closing connection: %v", err)
+		}
+	}()
 	defer cleanupTestData(t, storage)
 
 	assert.NotPanics(t, func() {
@@ -444,7 +500,11 @@ func TestStorageDrainDeleteQueue(t *testing.T) {
 	if storage == nil {
 		return
 	}
-	defer storage.conn.Close(context.Background())
+	defer func() {
+		if err := storage.conn.Close(context.Background()); err != nil {
+			t.Logf("Error closing connection: %v", err)
+		}
+	}()
 	defer cleanupTestData(t, storage)
 
 	assert.NotPanics(t, func() {
@@ -457,7 +517,11 @@ func TestStorageHardDeleteAllFlagged(t *testing.T) {
 	if storage == nil {
 		return
 	}
-	defer storage.conn.Close(context.Background())
+	defer func() {
+		if err := storage.conn.Close(context.Background()); err != nil {
+			t.Logf("Error closing connection: %v", err)
+		}
+	}()
 	defer cleanupTestData(t, storage)
 
 	user := &models.User{
@@ -492,7 +556,11 @@ func TestStorageIntegration(t *testing.T) {
 	if storage == nil {
 		return
 	}
-	defer storage.conn.Close(context.Background())
+	defer func() {
+		if err := storage.conn.Close(context.Background()); err != nil {
+			t.Logf("Error closing connection: %v", err)
+		}
+	}()
 	defer cleanupTestData(t, storage)
 
 	user := &models.User{
@@ -566,7 +634,11 @@ func TestStorageEdgeCases(t *testing.T) {
 	if storage == nil {
 		return
 	}
-	defer storage.conn.Close(context.Background())
+	defer func() {
+		if err := storage.conn.Close(context.Background()); err != nil {
+			t.Logf("Error closing connection: %v", err)
+		}
+	}()
 	defer cleanupTestData(t, storage)
 
 	user1 := &models.User{
@@ -605,7 +677,11 @@ func TestStorageConcurrency(t *testing.T) {
 	if storage == nil {
 		return
 	}
-	defer storage.conn.Close(context.Background())
+	defer func() {
+		if err := storage.conn.Close(context.Background()); err != nil {
+			t.Logf("Error closing connection: %v", err)
+		}
+	}()
 	defer cleanupTestData(t, storage)
 
 	user := &models.User{
@@ -640,7 +716,11 @@ func TestStorageInvalidData(t *testing.T) {
 	if storage == nil {
 		return
 	}
-	defer storage.conn.Close(context.Background())
+	defer func() {
+		if err := storage.conn.Close(context.Background()); err != nil {
+			t.Logf("Error closing connection: %v", err)
+		}
+	}()
 	defer cleanupTestData(t, storage)
 
 	task := &models.Task{

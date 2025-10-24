@@ -18,7 +18,11 @@ func TestGzipRequestDecompress(t *testing.T) {
 	router := gin.New()
 	router.Use(GzipRequestDecompress())
 	router.POST("/test", func(c *gin.Context) {
-		body, _ := io.ReadAll(c.Request.Body)
+		body, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"body": string(body)})
 	})
 
@@ -75,7 +79,7 @@ func TestGzipRequestDecompress(t *testing.T) {
 			if tt.contentEncoding == "gzip" {
 				var buf bytes.Buffer
 				gz := gzip.NewWriter(&buf)
-				gz.Write([]byte(tt.content))
+				_, _ = gz.Write([]byte(tt.content))
 				gz.Close()
 				body = &buf
 			} else {
