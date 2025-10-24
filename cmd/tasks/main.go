@@ -79,7 +79,7 @@ func main() {
 		log.Fatal("[ERROR] Не удалось инициализировать репозитории:", err)
 	}
 
-	api := server.NewTaskAPI(userRepo, taskRepo)
+	api := server.NewTaskAPI(userRepo, taskRepo, cfg)
 	if api == nil {
 		log.Fatal("[ERROR] Не удалось инициализировать API")
 	}

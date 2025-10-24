@@ -71,12 +71,10 @@ type TaskAPI struct {
 	taskRepo TaskRepository
 }
 
-func NewTaskAPI(repo Repository, taskRepo TaskRepository) *TaskAPI {
+func NewTaskAPI(repo Repository, taskRepo TaskRepository, cfg *Config) *TaskAPI {
 	if repo == nil || taskRepo == nil {
 		return nil
 	}
-
-	cfg := ReadConfig()
 
 	httpSrv := http.Server{
 		Addr:              cfg.Addr + ":" + strconv.Itoa(cfg.Port),

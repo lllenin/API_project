@@ -28,9 +28,13 @@ services:
       - DB_HOST=db
       - DB_PORT=5432
       - MIGRATEPATH=migrations
+      - ADDR=0.0.0.0
+      - PORT=8080
     ports:
       - "8080:8080"
-    command: ["./taskapp"]
+    command: ["./taskapp", "-c", "/app/config.json"]
+    volumes:
+      - ./config.example.json:/app/config.json:ro
 
 volumes:
   pgdata: 
