@@ -40,4 +40,9 @@ var (
 
 	ErrInvalidGzipRequest    = errors.New("некорректный gzip-запрос")
 	ErrGzipCompressionFailed = errors.New("ошибка gzip-сжатия")
+
+	ErrConfigFileNotFound   = errors.New("файл конфигурации не найден")
+	ErrConfigFileReadFailed = errors.New("ошибка чтения файла конфигурации")
+	ErrConfigParseFailed    = errors.New("ошибка парсинга конфигурации")
+	ErrConfigInvalidFormat  = errors.New("неверный формат конфигурации")
 )

@@ -1,0 +1,6 @@
+{
+  "addr": "0.0.0.0",
+  "port": 8080,
+  "dbstr": "postgresql://shouldbeinVaultuser:shouldbeinVaultpassword@db:5432/tasks?sslmode=disable",
+  "migratepath": "migrations"
+}

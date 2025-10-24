@@ -173,7 +173,7 @@ func TestRegister(t *testing.T) {
 			mockTaskRepo := &MockTaskRepository{}
 			tt.mockSetup(mockRepo)
 
-			api := NewTaskAPI(mockRepo, mockTaskRepo)
+			api := NewTaskAPI(mockRepo, mockTaskRepo, &Config{})
 
 			jsonData, _ := json.Marshal(tt.request)
 			req, _ := http.NewRequest("POST", "/users/register", bytes.NewBuffer(jsonData))
@@ -278,7 +278,7 @@ func TestLogin(t *testing.T) {
 			mockTaskRepo := &MockTaskRepository{}
 			tt.mockSetup(mockRepo)
 
-			api := NewTaskAPI(mockRepo, mockTaskRepo)
+			api := NewTaskAPI(mockRepo, mockTaskRepo, &Config{})
 
 			jsonData, _ := json.Marshal(tt.request)
 			req, _ := http.NewRequest("POST", "/users/login", bytes.NewBuffer(jsonData))
@@ -370,7 +370,7 @@ func TestCreateTask(t *testing.T) {
 			mockTaskRepo := &MockTaskRepository{}
 			tt.mockSetup(mockTaskRepo)
 
-			api := NewTaskAPI(mockRepo, mockTaskRepo)
+			api := NewTaskAPI(mockRepo, mockTaskRepo, &Config{})
 
 			jsonData, _ := json.Marshal(tt.request)
 			req, _ := http.NewRequest("POST", "/tasks", bytes.NewBuffer(jsonData))
@@ -449,7 +449,7 @@ func TestGetTasks(t *testing.T) {
 			mockTaskRepo := &MockTaskRepository{}
 			tt.mockSetup(mockTaskRepo)
 
-			api := NewTaskAPI(mockRepo, mockTaskRepo)
+			api := NewTaskAPI(mockRepo, mockTaskRepo, &Config{})
 
 			req, _ := http.NewRequest("GET", "/tasks", nil)
 			req.AddCookie(&http.Cookie{
@@ -562,7 +562,7 @@ func TestUpdateTask(t *testing.T) {
 			mockTaskRepo := &MockTaskRepository{}
 			tt.mockSetup(mockTaskRepo)
 
-			api := NewTaskAPI(mockRepo, mockTaskRepo)
+			api := NewTaskAPI(mockRepo, mockTaskRepo, &Config{})
 
 			jsonData, _ := json.Marshal(tt.request)
 			req, _ := http.NewRequest("PUT", "/tasks/"+tt.taskID, bytes.NewBuffer(jsonData))
@@ -666,7 +666,7 @@ func TestDeleteTask(t *testing.T) {
 			mockTaskRepo := &MockTaskRepository{}
 			tt.mockSetup(mockTaskRepo)
 
-			api := NewTaskAPI(mockRepo, mockTaskRepo)
+			api := NewTaskAPI(mockRepo, mockTaskRepo, &Config{})
 
 			req, _ := http.NewRequest("DELETE", "/tasks/"+tt.taskID, nil)
 			req.AddCookie(&http.Cookie{
@@ -749,7 +749,7 @@ func TestServerErrorHandling(t *testing.T) {
 			mockTaskRepo := &MockTaskRepository{}
 			tt.mockSetup(mockRepo, mockTaskRepo)
 
-			api := NewTaskAPI(mockRepo, mockTaskRepo)
+			api := NewTaskAPI(mockRepo, mockTaskRepo, &Config{})
 
 			var req *http.Request
 			if tt.request == "invalid json" {
@@ -775,7 +775,7 @@ func TestServerMiddleware(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockRepo := &MockRepository{}
 	mockTaskRepo := &MockTaskRepository{}
-	api := NewTaskAPI(mockRepo, mockTaskRepo)
+	api := NewTaskAPI(mockRepo, mockTaskRepo, &Config{})
 
 	req, _ := http.NewRequest("OPTIONS", "/users/register", nil)
 	req.Header.Set("Origin", "http://localhost:3000")
@@ -794,7 +794,7 @@ func TestServerRateLimiting(t *testing.T) {
 
 	mockTaskRepo.On("GetTasks", mock.Anything, "user123").Return([]models.Task{}, nil)
 
-	api := NewTaskAPI(mockRepo, mockTaskRepo)
+	api := NewTaskAPI(mockRepo, mockTaskRepo, &Config{})
 
 	for i := 0; i < 3; i++ {
 		req, _ := http.NewRequest("GET", "/tasks", nil)
@@ -811,7 +811,7 @@ func TestServerGracefulShutdown(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockRepo := &MockRepository{}
 	mockTaskRepo := &MockTaskRepository{}
-	api := NewTaskAPI(mockRepo, mockTaskRepo)
+	api := NewTaskAPI(mockRepo, mockTaskRepo, &Config{})
 
 	assert.NotNil(t, api)
 	assert.NotNil(t, api.httpSrv)
@@ -832,7 +832,7 @@ func BenchmarkLogin(b *testing.B) {
 	}
 	mockRepo.On("GetUserByUsername", "testuser").Return(user, nil)
 
-	api := NewTaskAPI(mockRepo, mockTaskRepo)
+	api := NewTaskAPI(mockRepo, mockTaskRepo, &Config{})
 
 	loginRequest := models.LoginRequest{
 		Username: "testuser",
@@ -858,7 +858,7 @@ func BenchmarkRegister(b *testing.B) {
 	mockRepo.On("GetUserByUsername", "testuser").Return(nil, errors.ErrUserNotFound)
 	mockRepo.On("CreateUser", mock.AnythingOfType("*models.User")).Return(nil)
 
-	api := NewTaskAPI(mockRepo, mockTaskRepo)
+	api := NewTaskAPI(mockRepo, mockTaskRepo, &Config{})
 
 	registerRequest := models.RegisterRequest{
 		Username: "testuser",
@@ -885,7 +885,7 @@ func BenchmarkCreateTask(b *testing.B) {
 
 	mockTaskRepo.On("CreateTask", mock.Anything, mock.AnythingOfType("*models.Task")).Return(nil)
 
-	api := NewTaskAPI(mockRepo, mockTaskRepo)
+	api := NewTaskAPI(mockRepo, mockTaskRepo, &Config{})
 
 	createTaskRequest := models.CreateTaskRequest{
 		Title:       "Test Task",
@@ -930,7 +930,7 @@ func BenchmarkGetTasks(b *testing.B) {
 	}
 	mockTaskRepo.On("GetTasks", mock.Anything, "user123").Return(tasks, nil)
 
-	api := NewTaskAPI(mockRepo, mockTaskRepo)
+	api := NewTaskAPI(mockRepo, mockTaskRepo, &Config{})
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

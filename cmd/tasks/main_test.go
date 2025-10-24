@@ -626,7 +626,7 @@ func TestAPIIntialization(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			inmem := inmemory.NewStorage()
-			api := server.NewTaskAPI(inmem, inmem)
+			api := server.NewTaskAPI(inmem, inmem, &server.Config{})
 			assert.NotNil(t, api, "API should be created")
 			assert.True(t, tt.want.apiAvailable, "API should be available")
 		})
