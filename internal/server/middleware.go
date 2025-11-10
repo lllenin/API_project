@@ -34,6 +34,8 @@ func (dc *dualCloser) Close() error {
 	return err2
 }
 
+// GzipRequestDecompress возвращает middleware для распаковки gzip-сжатых запросов.
+// Автоматически определяет наличие заголовка Content-Encoding: gzip и распаковывает тело запроса.
 func GzipRequestDecompress() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		encoding := strings.ToLower(ctx.GetHeader("Content-Encoding"))
@@ -168,6 +170,9 @@ func (w *gzipResponseWriter) WriteHeaderNow() { w.writer.WriteHeaderNow() }
 
 func (w *gzipResponseWriter) Written() bool { return w.writer.Written() }
 
+// GzipResponseCompress возвращает middleware для сжатия ответов в формате gzip.
+// Автоматически сжимает ответы, если клиент поддерживает gzip (заголовок Accept-Encoding: gzip).
+// Сжимает только ответы определенных типов контента и минимального размера.
 func GzipResponseCompress() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		if ctx.Request.Method == http.MethodHead {

@@ -12,6 +12,9 @@ import (
 	"time"
 )
 
+// InitializeRepositories инициализирует репозитории для работы с пользователями и задачами.
+// Пытается подключиться к базе данных. В случае ошибки использует in-memory хранилище.
+// Возвращает репозитории для пользователей и задач, а также ошибку при неудачной инициализации.
 func InitializeRepositories(cfg *server.Config) (server.Repository, server.TaskRepository, error) {
 	dbStorage, err := db.NewStorage(cfg.DBStr)
 	if err != nil {
@@ -22,6 +25,8 @@ func InitializeRepositories(cfg *server.Config) (server.Repository, server.TaskR
 	return dbStorage, dbStorage, nil
 }
 
+// RunMigrations применяет миграции базы данных из указанной в конфигурации папки.
+// Возвращает ошибку, если не удалось применить миграции.
 func RunMigrations(cfg *server.Config) error {
 	migratePath := cfg.MigratePath
 	if err := db.Migration(cfg.DBStr, migratePath); err != nil {
@@ -31,11 +36,16 @@ func RunMigrations(cfg *server.Config) error {
 	return nil
 }
 
+// TaskAPIInterface определяет интерфейс для управления жизненным циклом API сервера.
 type TaskAPIInterface interface {
+	// Start запускает сервер и начинает прослушивание входящих соединений.
 	Start() error
+	// Shutdown выполняет graceful shutdown сервера с использованием переданного контекста.
 	Shutdown(ctx context.Context) error
 }
 
+// StartServer запускает API сервер в отдельной горутине и настраивает обработку сигналов.
+// Возвращает канал сигналов для graceful shutdown и канал ошибок сервера.
 func StartServer(api TaskAPIInterface, cfg *server.Config) (chan os.Signal, chan error) {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
@@ -51,6 +61,9 @@ func StartServer(api TaskAPIInterface, cfg *server.Config) (chan os.Signal, chan
 	return sigChan, serverErr
 }
 
+// HandleShutdown обрабатывает сигнал завершения работы и выполняет graceful shutdown сервера.
+// Использует таймаут 30 секунд для завершения работы.
+// Возвращает ошибку, если не удалось корректно завершить работу сервера.
 func HandleShutdown(api TaskAPIInterface, sig os.Signal) error {
 	log.Printf("[INFO] Получен сигнал %v, начинаем graceful shutdown...", sig)
 

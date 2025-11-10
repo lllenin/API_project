@@ -9,11 +9,17 @@ import (
 	"strconv"
 )
 
+// Config представляет конфигурацию сервера.
+// Содержит настройки адреса, порта, строки подключения к БД, пути к миграциям и параметры HTTPS.
+// HTTPS можно включить через флаг -s или переменную окружения ENABLE_HTTPS.
 type Config struct {
-	Addr        string
-	Port        int
-	DBStr       string
-	MigratePath string
+	Addr        string // Адрес сервера
+	Port        int    // Порт сервера
+	DBStr       string // Строка подключения к базе данных
+	MigratePath string // Путь к папке с миграциями
+	EnableHTTPS bool   // Включить HTTPS (флаг -s или переменная окружения ENABLE_HTTPS)
+	CertFile    string // Путь к файлу сертификата для HTTPS (переменная окружения CERT_FILE или флаг -cert)
+	KeyFile     string // Путь к файлу приватного ключа для HTTPS (переменная окружения KEY_FILE или флаг -key)
 }
 
 const (
@@ -30,9 +36,15 @@ var (
 	dbDsn       = flag.String("dbdsn", "", "DSN для подключения к базе данных (приоритетнее dbstr)")
 	migratePath = flag.String("migratepath", defaultMigratePath, "путь к папке с миграциями")
 	configFile  = flag.String("c", "", "путь к файлу конфигурации JSON")
+	enableHTTPS = flag.Bool("s", false, "включить HTTPS")
+	certFile    = flag.String("cert", "", "путь к файлу сертификата для HTTPS")
+	keyFile     = flag.String("key", "", "путь к файлу приватного ключа для HTTPS")
 	parsed      = false
 )
 
+// ReadConfig читает конфигурацию из различных источников.
+// Приоритет источников: флаги командной строки > переменные окружения > JSON файл > значения по умолчанию.
+// Возвращает указатель на структуру Config с загруженными настройками.
 func ReadConfig() *Config {
 	if !parsed {
 		flag.Parse()
@@ -44,6 +56,9 @@ func ReadConfig() *Config {
 		Port:        defaultPort,
 		DBStr:       defaultDBStr,
 		MigratePath: defaultMigratePath,
+		EnableHTTPS: false,
+		CertFile:    "",
+		KeyFile:     "",
 	}
 
 	jsonConfig := loadJSONConfig()
@@ -116,6 +131,20 @@ func applyEnvOverrides(cfg *Config) *Config {
 		}
 	}
 
+	if enableHTTPS := os.Getenv("ENABLE_HTTPS"); enableHTTPS != "" {
+		if enableHTTPS == "true" || enableHTTPS == "1" || enableHTTPS == "yes" {
+			cfg.EnableHTTPS = true
+		}
+	}
+
+	if certFile := os.Getenv("CERT_FILE"); certFile != "" {
+		cfg.CertFile = certFile
+	}
+
+	if keyFile := os.Getenv("KEY_FILE"); keyFile != "" {
+		cfg.KeyFile = keyFile
+	}
+
 	return cfg
 }
 
@@ -128,6 +157,18 @@ func applyFlagOverrides(cfg *Config) *Config {
 		cfg.DBStr = *dbDsn
 	} else {
 		cfg.DBStr = *dbstr
+	}
+
+	if *enableHTTPS {
+		cfg.EnableHTTPS = true
+	}
+
+	if *certFile != "" {
+		cfg.CertFile = *certFile
+	}
+
+	if *keyFile != "" {
+		cfg.KeyFile = *keyFile
 	}
 
 	return cfg
