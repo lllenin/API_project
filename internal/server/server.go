@@ -49,28 +49,47 @@ func getUserIDFromJWT(ctx *gin.Context) (string, error) {
 	return userID, nil
 }
 
+// TaskRepository определяет интерфейс для работы с задачами в хранилище.
+// Все методы принимают контекст для управления таймаутами и отменой операций.
 type TaskRepository interface {
+	// CreateTask создает новую задачу в хранилище.
 	CreateTask(ctx context.Context, task *models.Task) error
+	// GetTaskByID возвращает задачу по её идентификатору.
 	GetTaskByID(ctx context.Context, id string) (*models.Task, error)
+	// GetTasks возвращает список всех задач для указанного пользователя.
 	GetTasks(ctx context.Context, userID string) ([]models.Task, error)
+	// UpdateTask обновляет существующую задачу по её идентификатору.
 	UpdateTask(ctx context.Context, id string, task *models.Task) error
+	// DeleteTask удаляет задачу по её идентификатору.
 	DeleteTask(ctx context.Context, id string) error
 }
 
+// Repository определяет интерфейс для работы с пользователями в хранилище.
 type Repository interface {
+	// GetUserByID возвращает пользователя по его идентификатору.
 	GetUserByID(id string) (*models.User, error)
+	// GetUserByUsername возвращает пользователя по его имени пользователя.
 	GetUserByUsername(username string) (*models.User, error)
+	// UpdateUser обновляет существующего пользователя по его идентификатору.
 	UpdateUser(id string, user *models.User) error
+	// DeleteUser удаляет пользователя по его идентификатору.
 	DeleteUser(id string) error
+	// CreateUser создает нового пользователя в хранилище.
 	CreateUser(user *models.User) error
 }
 
+// TaskAPI представляет основной API сервер для работы с задачами и пользователями.
+// Содержит HTTP сервер, репозитории для пользователей и задач.
 type TaskAPI struct {
 	httpSrv  *http.Server
 	repo     Repository
 	taskRepo TaskRepository
+	cfg      *Config
 }
 
+// NewTaskAPI создает новый экземпляр TaskAPI с указанными репозиториями и конфигурацией.
+// Возвращает nil, если repo или taskRepo равны nil.
+// Автоматически настраивает маршруты HTTP сервера.
 func NewTaskAPI(repo Repository, taskRepo TaskRepository, cfg *Config) *TaskAPI {
 	if repo == nil || taskRepo == nil {
 		return nil
@@ -85,6 +104,7 @@ func NewTaskAPI(repo Repository, taskRepo TaskRepository, cfg *Config) *TaskAPI 
 		httpSrv:  &httpSrv,
 		repo:     repo,
 		taskRepo: taskRepo,
+		cfg:      cfg,
 	}
 
 	api.configRoutes()
@@ -92,6 +112,10 @@ func NewTaskAPI(repo Repository, taskRepo TaskRepository, cfg *Config) *TaskAPI 
 	return &api
 }
 
+// Start запускает HTTP сервер и начинает прослушивание входящих соединений.
+// Если включен HTTPS (флаг -s или переменная окружения ENABLE_HTTPS), использует ListenAndServeTLS.
+// При включенном HTTPS сервер работает только через TLS для всего сайта.
+// Возвращает ошибку, если сервер не был инициализирован или произошла ошибка при запуске.
 func (api *TaskAPI) Start() error {
 	if api.httpSrv == nil {
 		return errors.ErrInternalServer
@@ -101,9 +125,24 @@ func (api *TaskAPI) Start() error {
 		api.httpSrv.Addr = ":8080"
 	}
 
+	if api.cfg != nil && api.cfg.EnableHTTPS {
+		certFile := api.cfg.CertFile
+		keyFile := api.cfg.KeyFile
+		if certFile == "" {
+			certFile = "server.crt"
+		}
+		if keyFile == "" {
+			keyFile = "server.key"
+		}
+		return api.httpSrv.ListenAndServeTLS(certFile, keyFile)
+	}
+
 	return api.httpSrv.ListenAndServe()
 }
 
+// Shutdown выполняет graceful shutdown HTTP сервера.
+// Использует переданный контекст для управления таймаутом завершения.
+// Возвращает ошибку, если произошла ошибка при завершении работы сервера.
 func (api *TaskAPI) Shutdown(ctx context.Context) error {
 	if api.httpSrv == nil {
 		return nil
@@ -113,6 +152,45 @@ func (api *TaskAPI) Shutdown(ctx context.Context) error {
 
 func (api *TaskAPI) configRoutes() {
 	router := gin.Default()
+
+	router.Use(func(ctx *gin.Context) {
+		origin := ctx.GetHeader("Origin")
+
+		if origin != "" {
+			ctx.Header("Access-Control-Allow-Origin", origin)
+			ctx.Header("Access-Control-Allow-Credentials", "true")
+		} else {
+			ctx.Header("Access-Control-Allow-Origin", "*")
+		}
+
+		ctx.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+		ctx.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+		ctx.Header("Access-Control-Expose-Headers", "Content-Length, Content-Type")
+		ctx.Header("Access-Control-Max-Age", "3600")
+
+		if ctx.Request.Method == "OPTIONS" {
+			ctx.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+
+		ctx.Next()
+	})
+
+	if api.cfg != nil && api.cfg.EnableHTTPS {
+		router.Use(func(ctx *gin.Context) {
+			if ctx.Request.TLS == nil {
+				ctx.JSON(http.StatusBadRequest, gin.H{"error": "требуется HTTPS соединение. Используйте https:// вместо http://"})
+				ctx.Abort()
+				return
+			}
+			ctx.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
+			ctx.Header("X-Content-Type-Options", "nosniff")
+			ctx.Header("X-Frame-Options", "DENY")
+			ctx.Header("X-XSS-Protection", "1; mode=block")
+			ctx.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+			ctx.Next()
+		})
+	}
 
 	router.NoMethod(func(ctx *gin.Context) {
 		ctx.JSON(http.StatusMethodNotAllowed, gin.H{"error": "использован некорректный HTTP-метод"})
@@ -124,6 +202,12 @@ func (api *TaskAPI) configRoutes() {
 		user.POST("/register", api.register)
 		user.PUT("/update/:userID", api.updateUser)
 		user.DELETE("/delete/:userID", api.deleteUser)
+		user.GET("/login", func(ctx *gin.Context) {
+			ctx.JSON(http.StatusMethodNotAllowed, gin.H{"error": "использован некорректный HTTP-метод"})
+		})
+		user.GET("/register", func(ctx *gin.Context) {
+			ctx.JSON(http.StatusMethodNotAllowed, gin.H{"error": "использован некорректный HTTP-метод"})
+		})
 		user.GET("/:userID", api.getUser)
 	}
 
@@ -139,6 +223,8 @@ func (api *TaskAPI) configRoutes() {
 	api.httpSrv.Handler = router
 }
 
+// login обрабатывает запрос на вход пользователя.
+// Принимает логин и пароль, проверяет их и устанавливает JWT токен в cookie.
 func (api *TaskAPI) login(ctx *gin.Context) {
 	var req models.LoginRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -190,6 +276,8 @@ func (api *TaskAPI) login(ctx *gin.Context) {
 	})
 }
 
+// register обрабатывает запрос на регистрацию нового пользователя.
+// Создает пользователя с хешированным паролем и возвращает информацию о созданном пользователе.
 func (api *TaskAPI) register(ctx *gin.Context) {
 	var req models.RegisterRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -246,6 +334,7 @@ func (api *TaskAPI) register(ctx *gin.Context) {
 	})
 }
 
+// getUser обрабатывает запрос на получение информации о пользователе по его ID.
 func (api *TaskAPI) getUser(ctx *gin.Context) {
 	userID := ctx.Param("userID")
 
@@ -269,6 +358,8 @@ func (api *TaskAPI) getUser(ctx *gin.Context) {
 	})
 }
 
+// updateUser обрабатывает запрос на обновление информации о пользователе.
+// Требует аутентификации и проверяет, что пользователь обновляет только свои данные.
 func (api *TaskAPI) updateUser(ctx *gin.Context) {
 	userID, err := getUserIDFromJWT(ctx)
 	if err != nil {
@@ -309,6 +400,8 @@ func (api *TaskAPI) updateUser(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "пользователь успешно обновлен"})
 }
 
+// deleteUser обрабатывает запрос на удаление пользователя.
+// Требует аутентификации и проверяет, что пользователь удаляет только свой аккаунт.
 func (api *TaskAPI) deleteUser(ctx *gin.Context) {
 	userID, err := getUserIDFromJWT(ctx)
 	if err != nil {
@@ -332,6 +425,8 @@ func (api *TaskAPI) deleteUser(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "пользователь успешно удален"})
 }
 
+// getTasks обрабатывает запрос на получение списка всех задач текущего пользователя.
+// Требует аутентификации.
 func (api *TaskAPI) getTasks(ctx *gin.Context) {
 	userID, err := getUserIDFromJWT(ctx)
 	if err != nil {
@@ -350,6 +445,8 @@ func (api *TaskAPI) getTasks(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"tasks": tasks})
 }
 
+// getTaskByID обрабатывает запрос на получение задачи по её ID.
+// Требует аутентификации и проверяет, что задача принадлежит текущему пользователю.
 func (api *TaskAPI) getTaskByID(ctx *gin.Context) {
 	userID, err := getUserIDFromJWT(ctx)
 	if err != nil {
@@ -385,6 +482,8 @@ var allowedUserRoles = map[string]bool{
 	"moderator": true,
 }
 
+// createTask обрабатывает запрос на создание новой задачи.
+// Требует аутентификации. Созданная задача автоматически привязывается к текущему пользователю.
 func (api *TaskAPI) createTask(ctx *gin.Context) {
 	userID, err := getUserIDFromJWT(ctx)
 	if err != nil {
@@ -418,6 +517,8 @@ func (api *TaskAPI) createTask(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, gin.H{"task": task})
 }
 
+// updateTask обрабатывает запрос на обновление существующей задачи.
+// Требует аутентификации и проверяет, что задача принадлежит текущему пользователю.
 func (api *TaskAPI) updateTask(ctx *gin.Context) {
 	userID, err := getUserIDFromJWT(ctx)
 	if err != nil {
@@ -468,6 +569,9 @@ func (api *TaskAPI) updateTask(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"task": task})
 }
 
+// deleteTask обрабатывает запрос на удаление задачи.
+// Требует аутентификации и проверяет, что задача принадлежит текущему пользователю.
+// Выполняет мягкое удаление (soft delete) задачи.
 func (api *TaskAPI) deleteTask(ctx *gin.Context) {
 	userID, err := getUserIDFromJWT(ctx)
 	if err != nil {

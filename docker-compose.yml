@@ -30,11 +30,23 @@ services:
       - MIGRATEPATH=migrations
       - ADDR=0.0.0.0
       - PORT=8080
+      - ENABLE_HTTPS=true
+      - CERT_FILE=/app/server.crt
+      - KEY_FILE=/app/server.key
     ports:
-      - "8080:8080"
-    command: ["./taskapp", "-c", "/app/config.json"]
+      - "8443:8080"
+    command: ["./taskapp", "-s", "-cert", "/app/server.crt", "-key", "/app/server.key"]
     volumes:
       - ./config.example.json:/app/config.json:ro
+
+  godoc:
+    image: golang:1.24-alpine
+    ports:
+      - "6060:6060"
+    volumes:
+      - .:/go/src/project
+    working_dir: /go/src/project
+    command: sh -c "go install golang.org/x/tools/cmd/godoc@latest && /go/bin/godoc -http=:6060"
 
 volumes:
   pgdata: 

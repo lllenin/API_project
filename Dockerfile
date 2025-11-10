@@ -9,7 +9,10 @@ FROM alpine:3.22
 WORKDIR /app
 COPY --from=build /app/taskapp .
 COPY migrations ./migrations
+COPY server.crt ./server.crt
+COPY server.key ./server.key
 RUN adduser -D appuser
 USER appuser
 EXPOSE 8080
+EXPOSE 8443
 CMD ["./taskapp"] 
